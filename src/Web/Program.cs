@@ -1,7 +1,21 @@
 using Aqua_Diary_API.Infrastructure.Data;
 using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CorsPolicy",
+        builder =>
+        {
+            builder
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .SetIsOriginAllowed(origin => true) // = any origin
+                .AllowCredentials();
+        });
+});
+
 
 // Add services to the container.
 builder.Services.AddKeyVaultIfConfigured(builder.Configuration);
@@ -13,7 +27,10 @@ builder.Services.AddWebServices();
 builder.Host.UseSerilog((ctx, loggerConfiguration) =>
     loggerConfiguration.WriteTo.Console().ReadFrom.Configuration(ctx.Configuration));
 
-var app = builder.Build();
+WebApplication app = builder.Build();
+
+app.UseCors();
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -29,7 +46,9 @@ else
 }
 
 app.UseHealthChecks("/health");
-app.UseHttpsRedirection();
+
+
+// app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseSwaggerUi(settings =>
@@ -39,10 +58,11 @@ app.UseSwaggerUi(settings =>
 });
 
 app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller}/{action=Index}/{id?}");
+    "default",
+    "{controller}/{action=Index}/{id?}").RequireCors("CorsPolicy");
 
-app.MapRazorPages();
+
+// app.MapRazorPages();
 
 app.MapFallbackToFile("index.html");
 
